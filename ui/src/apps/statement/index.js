@@ -3,5 +3,9 @@ module.exports = {
   loader: () => import('./app.js'),
   routerPrefix: '/statement',
   icon: 'line-chart',
-  menuTitle: 'Statement' // TODO: I18N
+  menuKey: 'statement.nav_menu',
+  translations: {
+    en: require('./translations/en.yaml'),
+    zh_CN: require('./translations/zh_CN.yaml'),
+  },
 }
