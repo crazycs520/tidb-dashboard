@@ -12,8 +12,8 @@ class LangDropdown extends React.PureComponent {
 
   render() {
     const languages = {
-      zh_CN: '简体中文',
       en: 'English',
+      'zh-CN': '简体中文',
     };
 
     const menu = (

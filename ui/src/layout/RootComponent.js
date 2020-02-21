@@ -2,6 +2,7 @@ import React from 'react';
 import { Layout, Menu, Icon } from 'antd';
 import { HashRouter as Router } from 'react-router-dom';
 import LangDropdown from './LangDropdown';
+import i18next from 'i18next';
 
 import styles from './RootComponent.module.less';
 
@@ -20,6 +21,7 @@ class App extends React.PureComponent {
   state = {
     collapsed: false,
     activeAppId: null,
+    curLng: i18next.language
   };
 
   triggerResizeEvent = () => {
@@ -48,12 +50,18 @@ class App extends React.PureComponent {
     }
   };
 
+  handleLanChange = (lng) => {
+    this.setState({curLng: lng});
+  }
+
   componentDidMount() {
     window.addEventListener('single-spa:routing-event', this.handleRouting);
+    i18next.on('languageChanged', this.handleLanChange);
   }
 
   componentWillUnmount() {
     window.removeEventListener('single-spa:routing-event', this.handleRouting);
+    i18next.off('languageChanged', this.handleLanChange);
   }
 
   render() {

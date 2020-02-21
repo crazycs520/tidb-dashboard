@@ -32,11 +32,12 @@ class AppRegistry {
    *  isDefaultRouter: boolean,
    *  icon: string,
    *  menuTitle: string,
+   *  menuKey: string
    * }} app
    */
   register(app) {
     if (app.translations) {
-      i18n.loadResource(app.translations);
+      i18n.addTranslations(app.translations);
     }
 
     singleSpa.registerApplication(
@@ -94,12 +95,14 @@ class AppRegistry {
       <Menu.Item key={appId}>
         <Link to={app.indexRoute}>
           {app.icon ? <Icon type={app.icon} /> : null}
-          <span>{app.menuTitle}</span>
+          <span>{app.menuTitle || i18n.t(app.menuKey)}</span>
         </Link>
       </Menu.Item>
     );
   }
 }
+
+i18n.init();
 
 const registry = new AppRegistry();
 
@@ -109,8 +112,6 @@ registry
   .register(AppHome)
   .register(AppDemo)
   .register(AppStatement);
-
-i18n.initFromResources();
 
 singleSpa.start();
 
