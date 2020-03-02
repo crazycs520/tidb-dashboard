@@ -9,17 +9,20 @@ import (
 )
 
 type TableDef struct {
-	Category  []string // The category of the table, such as [TiDB]
-	Title     string
-	CommentEN string   // English Comment
-	CommentCN string   // Chinese comment
-	Column    []string // Column name
-	Rows      []TableRowDef
+	Category       []string // The category of the table, such as [TiDB]
+	Title          string
+	CommentEN      string // English Comment
+	CommentCN      string // Chinese comment
+	joinColumns    []int
+	compareColumns []int
+	Column         []string // Column name
+	Rows           []TableRowDef
 }
 
 type TableRowDef struct {
 	Values    []string
 	SubValues [][]string // SubValues need fold default.
+	ratio     float64
 	Comment   string
 }
 
@@ -92,7 +95,7 @@ func GetReportTables(startTime, endTime string, db *gorm.DB) ([]*TableDef, []err
 		GetDiagnoseReport,
 
 		// Node
-		GetAvgMaxMinTable,
+		GetLoadTable,
 		GetCPUUsageTable,
 		GetTiKVThreadCPUTable,
 		GetGoroutinesCountTable,
@@ -266,8 +269,10 @@ P99 is the max time of 0.99 quantile;
 P90 is the max time of 0.90 quantile; 
 P80 is the max time of 0.80 quantile; 
 `,
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TIME_RATIO", "TOTAL_TIME", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{3},
+		CommentCN:      "",
+		Column:         []string{"METRIC_NAME", "LABEL", "TIME_RATIO", "TOTAL_TIME", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
 	}
 
 	resultRows := make([]TableRowDef, 0, len(defs))
@@ -331,9 +336,11 @@ METRIC_NAME is the error event name;
 LABEL is the event label, such as instance, event type ...; 
 TOTAL_COUNT is the total count of this event; 
 `,
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_COUNT"},
-		Rows:      rows,
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_COUNT"},
+		Rows:           rows,
 	}, nil
 }
 
@@ -388,8 +395,10 @@ P99 is the max time of 0.99 quantile;
 P90 is the max time of 0.90 quantile; 
 P80 is the max time of 0.80 quantile; 
 `,
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TIME_RATIO", "TOTAL_TIME", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{3},
+		Column:         []string{"METRIC_NAME", "LABEL", "TIME_RATIO", "TOTAL_TIME", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
 	}
 
 	resultRows := make([]TableRowDef, 0, len(defs))
@@ -456,8 +465,10 @@ P99 is the max size/value of 0.99 quantile;
 P90 is the max size/value of 0.90 quantile; 
 P80 is the max size/value of 0.80 quantile; 
 `,
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
 	}
 
 	specialHandle := func(row []string) []string {
@@ -505,12 +516,13 @@ func GetTiDBDDLOwner(startTime, endTime string, db *gorm.DB) (*TableDef, error) 
 		return nil, err
 	}
 	table := &TableDef{
-		Category:  []string{CategoryTiDB},
-		Title:     "DDL-owner",
-		CommentEN: "DDL Owner info. Attention, if no DDL request has been executed, below owner info maybe null, it doesn't indicate no DDL owner exists.",
-		CommentCN: "",
-		Column:    []string{"MIN_TIME", "DDL OWNER"},
-		Rows:      rows,
+		Category:    []string{CategoryTiDB},
+		Title:       "DDL-owner",
+		CommentEN:   "DDL Owner info. Attention, if no DDL request has been executed, below owner info maybe null, it doesn't indicate no DDL owner exists.",
+		CommentCN:   "",
+		joinColumns: []int{1},
+		Column:      []string{"MIN_TIME", "DDL OWNER"},
+		Rows:        rows,
 	}
 	return table, nil
 }
@@ -530,8 +542,10 @@ func GetPDConfigInfo(startTime, endTime string, db *gorm.DB) (*TableDef, error) 
 		Title:     "Scheduler Config",
 		CommentEN: "PD scheduler config change history. MIN_TIME is the minimum start effective time",
 		CommentCN: "",
-		Column:    []string{"MIN_TIME", "CONFIG_ITEM", "VALUE", "CHANGE_COUNT"},
-		Rows:      rows,
+		//joinColumns: []int{1, 2},
+		//compareColumns: []int{2},
+		Column: []string{"MIN_TIME", "CONFIG_ITEM", "VALUE", "CHANGE_COUNT"},
+		Rows:   rows,
 	}
 	return table, nil
 }
@@ -552,8 +566,10 @@ func GetTiDBGCConfigInfo(startTime, endTime string, db *gorm.DB) (*TableDef, err
 		CommentEN: `PD scheduler config change history; 
 MIN_TIME is the minimum start effective time`,
 		CommentCN: "",
-		Column:    []string{"MIN_TIME", "CONFIG_ITEM", "VALUE", "CHANGE_COUNT"},
-		Rows:      rows,
+		//joinColumns:    []int{1, 2},
+		//compareColumns: []int{2},
+		Column: []string{"MIN_TIME", "CONFIG_ITEM", "VALUE", "CHANGE_COUNT"},
+		Rows:   rows,
 	}
 	return table, nil
 }
@@ -590,8 +606,10 @@ P99 is the max time of 0.99 quantile;
 P90 is the max time of 0.90 quantile; 
 P80 is the max time of 0.80 quantile; 
 `,
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TIME_RATIO", "TOTAL_TIME", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{3},
+		Column:         []string{"METRIC_NAME", "LABEL", "TIME_RATIO", "TOTAL_TIME", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
 	}
 
 	resultRows := make([]TableRowDef, 0, len(defs))
@@ -623,12 +641,14 @@ func GetPDSchedulerInfo(startTime, endTime string, db *gorm.DB) (*TableDef, erro
 	}
 
 	return &TableDef{
-		Category:  []string{CategoryPD},
-		Title:     "blance leader/region",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_COUNT"},
-		Rows:      rows,
+		Category:       []string{CategoryPD},
+		Title:          "blance leader/region",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_COUNT"},
+		Rows:           rows,
 	}, nil
 }
 
@@ -678,12 +698,14 @@ func GetTiKVRegionSizeInfo(startTime, endTime string, db *gorm.DB) (*TableDef, e
 		return nil, err
 	}
 	return &TableDef{
-		Category:  []string{CategoryTiKV},
-		Title:     "Approximate Region size",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "P99", "P90", "P80", "P50"},
-		Rows:      resultRows,
+		Category:       []string{CategoryTiKV},
+		Title:          "Approximate Region size",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2, 3, 4, 5},
+		Column:         []string{"METRIC_NAME", "LABEL", "P99", "P90", "P80", "P50"},
+		Rows:           resultRows,
 	}, nil
 }
 
@@ -697,12 +719,14 @@ func GetTiKVStoreInfo(startTime, endTime string, db *gorm.DB) (*TableDef, error)
 	}
 
 	return &TableDef{
-		Category:  []string{CategoryTiKV},
-		Title:     "blance leader/region",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_COUNT"},
-		Rows:      rows,
+		Category:       []string{CategoryTiKV},
+		Title:          "blance leader/region",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_COUNT"},
+		Rows:           rows,
 	}, nil
 }
 
@@ -753,8 +777,10 @@ P99 is the max time of 0.99 quantile;
 P90 is the max time of 0.90 quantile; 
 P80 is the max time of 0.80 quantile; 
 `,
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TIME_RATIO", "TOTAL_TIME", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{3},
+		Column:         []string{"METRIC_NAME", "LABEL", "TIME_RATIO", "TOTAL_TIME", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
 	}
 
 	resultRows := make([]TableRowDef, 0, len(defs))
@@ -824,12 +850,14 @@ func GetTiKVSchedulerInfo(startTime, endTime string, db *gorm.DB) (*TableDef, er
 		return nil, err
 	}
 	table := &TableDef{
-		Category:  []string{CategoryTiKV},
-		Title:     "Scheduler Info",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
-		Rows:      resultRows,
+		Category:       []string{CategoryTiKV},
+		Title:          "Scheduler Info",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
+		Rows:           resultRows,
 	}
 	return table, nil
 }
@@ -846,12 +874,14 @@ func GetTiKVGCInfo(startTime, endTime string, db *gorm.DB) (*TableDef, error) {
 	}
 
 	table := &TableDef{
-		Category:  []string{CategoryTiKV},
-		Title:     "GC Info",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE"},
-		Rows:      rows,
+		Category:       []string{CategoryTiKV},
+		Title:          "GC Info",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE"},
+		Rows:           rows,
 	}
 	return table, nil
 }
@@ -870,12 +900,14 @@ func GetTiKVTaskInfo(startTime, endTime string, db *gorm.DB) (*TableDef, error) 
 	}
 
 	table := &TableDef{
-		Category:  []string{CategoryTiKV},
-		Title:     "Task Info",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE"},
-		Rows:      rows,
+		Category:       []string{CategoryTiKV},
+		Title:          "Task Info",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE"},
+		Rows:           rows,
 	}
 	return table, nil
 }
@@ -949,12 +981,14 @@ func GetTiKVSnapshotInfo(startTime, endTime string, db *gorm.DB) (*TableDef, err
 		return nil, err
 	}
 	table := &TableDef{
-		Category:  []string{CategoryTiKV},
-		Title:     "Snapshot Info",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
-		Rows:      resultRows,
+		Category:       []string{CategoryTiKV},
+		Title:          "Snapshot Info",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE", "TOTAL_COUNT", "P999", "P99", "P90", "P80"},
+		Rows:           resultRows,
 	}
 	return table, nil
 }
@@ -981,12 +1015,14 @@ func GetTiKVCopInfo(startTime, endTime string, db *gorm.DB) (*TableDef, error) {
 		return nil, err
 	}
 	table := &TableDef{
-		Category:  []string{CategoryTiKV},
-		Title:     "Snapshot Info",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE"},
-		Rows:      resultRows,
+		Category:       []string{CategoryTiKV},
+		Title:          "Coprocessor Info",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE"},
+		Rows:           resultRows,
 	}
 	return table, nil
 }
@@ -1013,12 +1049,14 @@ func GetTiKVRaftInfo(startTime, endTime string, db *gorm.DB) (*TableDef, error) 
 		return nil, err
 	}
 	table := &TableDef{
-		Category:  []string{CategoryTiKV},
-		Title:     "Snapshot Info",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE"},
-		Rows:      resultRows,
+		Category:       []string{CategoryTiKV},
+		Title:          "Snapshot Info",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_VALUE"},
+		Rows:           resultRows,
 	}
 	return table, nil
 }
@@ -1042,11 +1080,13 @@ func GetTiKVErrorTable(startTime, endTime string, db *gorm.DB) (*TableDef, error
 	}
 
 	table := &TableDef{
-		Category:  []string{CategoryTiKV},
-		Title:     "Error",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "LABEL", "TOTAL_COUNT"},
+		Category:       []string{CategoryTiKV},
+		Title:          "Error",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2},
+		Column:         []string{"METRIC_NAME", "LABEL", "TOTAL_COUNT"},
 	}
 
 	resultRows := make([]TableRowDef, 0, len(defs))
@@ -1207,7 +1247,7 @@ func getAvgValueTableData(defs1 []AvgMaxMinTableDef, startTime, endTime string, 
 	return resultRows, nil
 }
 
-func GetAvgMaxMinTable(startTime, endTime string, db *gorm.DB) (*TableDef, error) {
+func GetLoadTable(startTime, endTime string, db *gorm.DB) (*TableDef, error) {
 	defs1 := []AvgMaxMinTableDef{
 		{name: "node_cpu_usage", tbl: "node_cpu_usage", label: "instance", Comment: "the CPU usage in each node"},
 		//{name: "node_mem_usage", tbl: "node_mem_usage", label: "instance"},
@@ -1219,12 +1259,14 @@ func GetAvgMaxMinTable(startTime, endTime string, db *gorm.DB) (*TableDef, error
 		return nil, err
 	}
 	return &TableDef{
-		Category:  []string{CategoryNode},
-		Title:     "Error",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "instance", "AVG", "MAX", "MIN"},
-		Rows:      rows,
+		Category:       []string{CategoryNode},
+		Title:          "Error",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2, 3, 4},
+		Column:         []string{"METRIC_NAME", "instance", "AVG", "MAX", "MIN"},
+		Rows:           rows,
 	}, nil
 }
 
@@ -1237,12 +1279,14 @@ func GetCPUUsageTable(startTime, endTime string, db *gorm.DB) (*TableDef, error)
 	}
 
 	table := &TableDef{
-		Category:  []string{CategoryNode},
-		Title:     "process cpu usage",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"instance", "job", "AVG", "MAX", "MIN"},
-		Rows:      rows,
+		Category:       []string{CategoryNode},
+		Title:          "process cpu usage",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2, 3, 4},
+		Column:         []string{"instance", "job", "AVG", "MAX", "MIN"},
+		Rows:           rows,
 	}
 	return table, nil
 }
@@ -1255,12 +1299,14 @@ func GetGoroutinesCountTable(startTime, endTime string, db *gorm.DB) (*TableDef,
 		return nil, err
 	}
 	table := &TableDef{
-		Category:  []string{CategoryNode},
-		Title:     "goroutines count",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"instance", "job", "AVG", "MAX", "MIN"},
-		Rows:      rows,
+		Category:       []string{CategoryNode},
+		Title:          "goroutines count",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2, 3, 4},
+		Column:         []string{"instance", "job", "AVG", "MAX", "MIN"},
+		Rows:           rows,
 	}
 	return table, nil
 }
@@ -1282,12 +1328,14 @@ func GetTiKVThreadCPUTable(startTime, endTime string, db *gorm.DB) (*TableDef, e
 		return nil, err
 	}
 	return &TableDef{
-		Category:  []string{CategoryNode},
-		Title:     "Error",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "instance", "AVG", "MAX", "MIN"},
-		Rows:      rows,
+		Category:       []string{CategoryNode},
+		Title:          "Error",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2, 3, 4},
+		Column:         []string{"METRIC_NAME", "instance", "AVG", "MAX", "MIN"},
+		Rows:           rows,
 	}, nil
 }
 
@@ -1305,12 +1353,14 @@ func GetStoreStatusTable(startTime, endTime string, db *gorm.DB) (*TableDef, err
 		return nil, err
 	}
 	return &TableDef{
-		Category:  []string{CategoryPD},
-		Title:     "Error",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "instance", "AVG", "MAX", "MIN"},
-		Rows:      rows,
+		Category:       []string{CategoryPD},
+		Title:          "Error",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2, 3, 4},
+		Column:         []string{"METRIC_NAME", "instance", "AVG", "MAX", "MIN"},
+		Rows:           rows,
 	}, nil
 }
 
@@ -1322,12 +1372,14 @@ func GetPDClusterStatusTable(startTime, endTime string, db *gorm.DB) (*TableDef,
 		return nil, err
 	}
 	table := &TableDef{
-		Category:  []string{CategoryPD},
-		Title:     "cluster status",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"TYPE", "MAX", "MIN"},
-		Rows:      rows,
+		Category:       []string{CategoryPD},
+		Title:          "cluster status",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0},
+		compareColumns: []int{1, 2},
+		Column:         []string{"TYPE", "MAX", "MIN"},
+		Rows:           rows,
 	}
 	return table, nil
 }
@@ -1340,12 +1392,14 @@ func GetPDEtcdStatusTable(startTime, endTime string, db *gorm.DB) (*TableDef, er
 		return nil, err
 	}
 	table := &TableDef{
-		Category:  []string{CategoryPD},
-		Title:     "etcd status",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"TYPE", "MAX", "MIN"},
-		Rows:      rows,
+		Category:       []string{CategoryPD},
+		Title:          "etcd status",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0},
+		compareColumns: []int{1, 2},
+		Column:         []string{"TYPE", "MAX", "MIN"},
+		Rows:           rows,
 	}
 	return table, nil
 }
@@ -1380,11 +1434,13 @@ func GetTiKVCacheHitTable(startTime, endTime string, db *gorm.DB) (*TableDef, er
 
 	resultRows := make([]TableRowDef, 0, len(tables))
 	table := &TableDef{
-		Category:  []string{CategoryTiKV},
-		Title:     "cache hit",
-		CommentEN: "",
-		CommentCN: "",
-		Column:    []string{"METRIC_NAME", "TPYE", "AVG", "MAX", "MIN"},
+		Category:       []string{CategoryTiKV},
+		Title:          "cache hit",
+		CommentEN:      "",
+		CommentCN:      "",
+		joinColumns:    []int{0, 1},
+		compareColumns: []int{2, 3, 4},
+		Column:         []string{"METRIC_NAME", "TPYE", "AVG", "MAX", "MIN"},
 	}
 	for i, t := range tables {
 		sql := ""
