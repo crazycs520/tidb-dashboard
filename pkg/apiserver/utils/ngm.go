@@ -4,6 +4,7 @@ package utils
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -94,7 +95,7 @@ func (n *NgmProxy) Route(targetPath string) gin.HandlerFunc {
 			IdleConnTimeout:       90 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
-			TLSClientConfig:       n.config.ClusterTLSConfig,
+			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
 		}
 		proxy.ServeHTTP(c.Writer, c.Request)
 	}
