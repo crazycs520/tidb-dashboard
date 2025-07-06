@@ -4,6 +4,9 @@ package metrics
 
 import (
 	"context"
+	"crypto/tls"
+	"net"
+	"net/http"
 	"time"
 
 	"github.com/joomcode/errorx"
@@ -13,7 +16,6 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/pingcap/tidb-dashboard/pkg/config"
-	"github.com/pingcap/tidb-dashboard/pkg/httpc"
 	"github.com/pingcap/tidb-dashboard/pkg/pd"
 )
 
@@ -31,7 +33,6 @@ const (
 type ServiceParams struct {
 	fx.In
 	Config     *config.Config
-	HTTPClient *httpc.Client
 	EtcdClient *clientv3.Client
 	PDClient   *pd.Client
 }
@@ -42,10 +43,24 @@ type Service struct {
 
 	promRequestGroup singleflight.Group
 	promAddressCache atomic.Value
+	httpClient       *http.Client
 }
 
 func NewService(lc fx.Lifecycle, p ServiceParams) *Service {
-	s := &Service{params: p}
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
+	s := &Service{
+		params: p,
+		httpClient: &http.Client{
+			Transport: &http.Transport{
+				DialTLS: func(network, addr string) (net.Conn, error) {
+					conn, err := tls.Dial(network, addr, tlsConfig)
+					return conn, err
+				},
+				TLSClientConfig: tlsConfig,
+			},
+			Timeout: defaultPromQueryTimeout,
+		},
+	}
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {

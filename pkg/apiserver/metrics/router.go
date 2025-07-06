@@ -72,7 +72,7 @@ func (s *Service) queryMetrics(c *gin.Context) {
 		return
 	}
 
-	promResp, err := s.params.HTTPClient.WithTimeout(defaultPromQueryTimeout).Do(promReq)
+	promResp, err := s.httpClient.Do(promReq)
 	if err != nil {
 		rest.Error(c, ErrPrometheusQueryFailed.Wrap(err, "failed to send requests to Prometheus"))
 		return
