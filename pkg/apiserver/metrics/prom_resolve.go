@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/pingcap/log"
+	"go.uber.org/zap"
 	"net"
 	"net/url"
 	"strconv"
@@ -71,6 +73,7 @@ func (s *Service) resolveCustomizedPromAddress(acceptInvalidAddr bool) (string, 
 		if err != nil {
 			return "", err
 		}
+		log.Warn("get prometheus address from PD config", zap.String("addr", addr))
 		return addr, nil
 	}
 	return "", nil
@@ -105,6 +108,7 @@ func (s *Service) resolveFinalPromAddress() (string, error) {
 		return "", err
 	}
 	if addr != "" {
+		log.Warn("get prometheus address from topology", zap.String("addr", addr))
 		return addr, nil
 	}
 	return "", nil
@@ -121,7 +125,6 @@ func (s *Service) getPromAddressFromCache() (string, error) {
 				return entity.address, nil
 			}
 		}
-
 		// Cache is not valid, read from PD and etcd.
 		addr, err := s.resolveFinalPromAddress()
 		if err != nil {
