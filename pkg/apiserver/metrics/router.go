@@ -3,14 +3,15 @@
 package metrics
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-
 	"github.com/pingcap/tidb-dashboard/pkg/apiserver/user"
 	"github.com/pingcap/tidb-dashboard/util/rest"
 )
@@ -72,7 +73,18 @@ func (s *Service) queryMetrics(c *gin.Context) {
 		return
 	}
 
-	promResp, err := s.httpClient.WithTimeout(defaultPromQueryTimeout).Do(promReq)
+	cli := http.Client{
+		Transport: &http.Transport{
+			DialTLS: func(network, addr string) (net.Conn, error) {
+				conn, err := tls.Dial(network, addr, s.params.Config.ClusterTLSConfig)
+				return conn, err
+			},
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+		Timeout: defaultPromQueryTimeout,
+	}
+
+	promResp, err := cli.Do(promReq)
 	if err != nil {
 		rest.Error(c, ErrPrometheusQueryFailed.Wrap(err, "failed to send requests to Prometheus"))
 		return

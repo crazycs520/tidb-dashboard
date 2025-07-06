@@ -42,14 +42,10 @@ type Service struct {
 
 	promRequestGroup singleflight.Group
 	promAddressCache atomic.Value
-	httpClient       *httpc.Client
 }
 
 func NewService(lc fx.Lifecycle, p ServiceParams) *Service {
-	s := &Service{
-		params:     p,
-		httpClient: httpc.NewHTTPClient(lc, p.Config),
-	}
+	s := &Service{params: p}
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
