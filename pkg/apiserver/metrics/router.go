@@ -3,10 +3,8 @@
 package metrics
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -73,19 +71,7 @@ func (s *Service) queryMetrics(c *gin.Context) {
 		return
 	}
 
-	tlsConfig := &tls.Config{InsecureSkipVerify: true}
-	cli := http.Client{
-		Transport: &http.Transport{
-			DialTLS: func(network, addr string) (net.Conn, error) {
-				conn, err := tls.Dial(network, addr, tlsConfig)
-				return conn, err
-			},
-			TLSClientConfig: tlsConfig,
-		},
-		Timeout: defaultPromQueryTimeout,
-	}
-
-	promResp, err := cli.Do(promReq)
+	promResp, err := s.httpClient.Do(promReq)
 	if err != nil {
 		rest.Error(c, ErrPrometheusQueryFailed.Wrap(err, "failed to send requests to Prometheus"))
 		return
