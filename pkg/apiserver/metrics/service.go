@@ -13,7 +13,6 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/pingcap/tidb-dashboard/pkg/config"
-	"github.com/pingcap/tidb-dashboard/pkg/httpc"
 	"github.com/pingcap/tidb-dashboard/pkg/pd"
 )
 
@@ -31,7 +30,6 @@ const (
 type ServiceParams struct {
 	fx.In
 	Config     *config.Config
-	HTTPClient *httpc.Client
 	EtcdClient *clientv3.Client
 	PDClient   *pd.Client
 }

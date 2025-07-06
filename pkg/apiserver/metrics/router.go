@@ -73,13 +73,14 @@ func (s *Service) queryMetrics(c *gin.Context) {
 		return
 	}
 
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 	cli := http.Client{
 		Transport: &http.Transport{
 			DialTLS: func(network, addr string) (net.Conn, error) {
-				conn, err := tls.Dial(network, addr, s.params.Config.ClusterTLSConfig)
+				conn, err := tls.Dial(network, addr, tlsConfig)
 				return conn, err
 			},
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: tlsConfig,
 		},
 		Timeout: defaultPromQueryTimeout,
 	}
