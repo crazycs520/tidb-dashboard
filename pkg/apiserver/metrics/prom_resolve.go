@@ -121,6 +121,7 @@ func (s *Service) getPromAddressFromCache() (string, error) {
 				return entity.address, nil
 			}
 		}
+
 		// Cache is not valid, read from PD and etcd.
 		addr, err := s.resolveFinalPromAddress()
 		if err != nil {

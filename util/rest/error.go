@@ -89,8 +89,7 @@ func ErrorHandlerFn() gin.HandlerFunc {
 		log.Warn("Error when handling request",
 			zap.String("uri", c.Request.RequestURI),
 			zap.String("remoteAddr", c.Request.RemoteAddr),
-			zap.String("errorFullText", errResponse.FullText),
-			zap.String("error", err.Error()))
+			zap.String("errorFullText", errResponse.FullText))
 		c.AbortWithStatusJSON(statusCode, errResponse)
 	}
 }
